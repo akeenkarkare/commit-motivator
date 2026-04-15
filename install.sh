@@ -17,7 +17,8 @@ echo ""
 chmod +x "$REPO_DIR/commit_gate.sh"
 
 echo "==> Installing sudoers rule (needs your password once)"
-SUDOERS_CONTENT="$USER_NAME ALL=(root) NOPASSWD: /bin/cp /*/hosts /etc/hosts, /usr/bin/dscacheutil -flushcache, /usr/bin/killall -HUP mDNSResponder"
+STAGED="/Users/$USER_NAME/.commit_motivation/hosts.staged"
+SUDOERS_CONTENT="$USER_NAME ALL=(root) NOPASSWD: /bin/cp $STAGED /etc/hosts, /usr/bin/dscacheutil -flushcache, /usr/bin/killall -HUP mDNSResponder"
 TMP_SUDO=$(mktemp)
 echo "$SUDOERS_CONTENT" > "$TMP_SUDO"
 if ! sudo visudo -cf "$TMP_SUDO" >/dev/null; then

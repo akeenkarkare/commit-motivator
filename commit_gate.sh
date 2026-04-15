@@ -10,6 +10,7 @@ MARKER_END="# <<< commit_motivation <<<"
 BLOCKED_HOSTS=("mail.google.com" "www.mail.google.com" "gmail.com" "www.gmail.com")
 STATE_DIR="$HOME/.commit_motivation"
 LOG_FILE="$STATE_DIR/gate.log"
+STAGED_HOSTS="$STATE_DIR/hosts.staged"
 
 mkdir -p "$STATE_DIR"
 
@@ -49,10 +50,7 @@ for e in events:
         continue
     local_date = utc.astimezone().strftime('%Y-%m-%d')
     if local_date == today:
-        payload = e.get('payload', {})
-        commits = payload.get('commits', [])
-        if any(c.get('distinct') for c in commits):
-            sys.exit(0)
+        sys.exit(0)
 sys.exit(1)
 "
   return $?
@@ -62,13 +60,16 @@ is_blocked() {
   grep -q "$MARKER_BEGIN" "$HOSTS_FILE"
 }
 
+flush_dns() {
+  sudo -n /usr/bin/dscacheutil -flushcache 2>/dev/null
+  sudo -n /usr/bin/killall -HUP mDNSResponder 2>/dev/null
+}
+
 apply_block() {
   if is_blocked; then
     return 0
   fi
-  local tmp
-  tmp=$(mktemp)
-  cat "$HOSTS_FILE" > "$tmp"
+  cat "$HOSTS_FILE" > "$STAGED_HOSTS"
   {
     echo ""
     echo "$MARKER_BEGIN"
@@ -77,10 +78,10 @@ apply_block() {
       echo "::1 $h"
     done
     echo "$MARKER_END"
-  } >> "$tmp"
-  sudo -n /bin/cp "$tmp" "$HOSTS_FILE" && sudo -n /usr/bin/dscacheutil -flushcache && sudo -n /usr/bin/killall -HUP mDNSResponder 2>/dev/null
+  } >> "$STAGED_HOSTS"
+  sudo -n /bin/cp "$STAGED_HOSTS" "$HOSTS_FILE"
   local rc=$?
-  rm -f "$tmp"
+  flush_dns
   log "block applied (rc=$rc)"
   return $rc
 }
@@ -89,16 +90,14 @@ remove_block() {
   if ! is_blocked; then
     return 0
   fi
-  local tmp
-  tmp=$(mktemp)
   awk -v b="$MARKER_BEGIN" -v e="$MARKER_END" '
     $0==b {skip=1; next}
     $0==e {skip=0; next}
     !skip {print}
-  ' "$HOSTS_FILE" > "$tmp"
-  sudo -n /bin/cp "$tmp" "$HOSTS_FILE" && sudo -n /usr/bin/dscacheutil -flushcache && sudo -n /usr/bin/killall -HUP mDNSResponder 2>/dev/null
+  ' "$HOSTS_FILE" > "$STAGED_HOSTS"
+  sudo -n /bin/cp "$STAGED_HOSTS" "$HOSTS_FILE"
   local rc=$?
-  rm -f "$tmp"
+  flush_dns
   log "block removed (rc=$rc)"
   return $rc
 }

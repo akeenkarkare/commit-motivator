@@ -3,10 +3,10 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.akeen.commit-gate.reset</string>
+    <string>com.commit-motivation.reset</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/akeen/commit_motivation/commit_gate.sh</string>
+        <string>__REPO_DIR__/commit_gate.sh</string>
         <string>reset</string>
     </array>
     <key>StartCalendarInterval</key>
@@ -17,8 +17,8 @@
         <integer>1</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>/Users/akeen/.commit_motivation/launchd.out.log</string>
+    <string>__HOME__/.commit_motivation/launchd.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/akeen/.commit_motivation/launchd.err.log</string>
+    <string>__HOME__/.commit_motivation/launchd.err.log</string>
 </dict>
 </plist>

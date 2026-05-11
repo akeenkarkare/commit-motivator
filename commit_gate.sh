@@ -1,13 +1,25 @@
 #!/bin/bash
-# Blocks mail.google.com in /etc/hosts until akeenkarkare has made a GitHub commit today (local TZ).
+# Blocks chosen hostnames in /etc/hosts until $GITHUB_USER has made a GitHub commit today (local TZ).
 
 set -u
 
-GITHUB_USER="akeenkarkare"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/.env"
+
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+fi
+
+: "${GITHUB_USER:?GITHUB_USER is not set. Copy .env.example to .env and fill it in.}"
+: "${BLOCKED_HOSTS:=mail.google.com,www.mail.google.com,gmail.com,www.gmail.com}"
+
 HOSTS_FILE="/etc/hosts"
 MARKER_BEGIN="# >>> commit_motivation >>>"
 MARKER_END="# <<< commit_motivation <<<"
-BLOCKED_HOSTS=("mail.google.com" "www.mail.google.com" "gmail.com" "www.gmail.com")
+IFS=',' read -r -a BLOCKED_HOSTS_ARR <<< "$BLOCKED_HOSTS"
 STATE_DIR="$HOME/.commit_motivation"
 LOG_FILE="$STATE_DIR/gate.log"
 STAGED_HOSTS="$STATE_DIR/hosts.staged"
@@ -73,7 +85,9 @@ apply_block() {
   {
     echo ""
     echo "$MARKER_BEGIN"
-    for h in "${BLOCKED_HOSTS[@]}"; do
+    for h in "${BLOCKED_HOSTS_ARR[@]}"; do
+      h=$(echo "$h" | xargs)
+      [ -z "$h" ] && continue
       echo "127.0.0.1 $h"
       echo "::1 $h"
     done

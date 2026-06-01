@@ -77,26 +77,50 @@ flush_dns() {
   sudo -n /usr/bin/killall -HUP mDNSResponder 2>/dev/null
 }
 
+desired_block() {
+  echo "$MARKER_BEGIN"
+  for h in "${BLOCKED_HOSTS_ARR[@]}"; do
+    h=$(echo "$h" | xargs)
+    [ -z "$h" ] && continue
+    echo "127.0.0.1 $h"
+    echo "::1 $h"
+  done
+  echo "$MARKER_END"
+}
+
+current_block() {
+  awk -v b="$MARKER_BEGIN" -v e="$MARKER_END" '
+    $0==b {inside=1}
+    inside {print}
+    $0==e {inside=0}
+  ' "$HOSTS_FILE"
+}
+
+block_matches_desired() {
+  [ "$(current_block)" = "$(desired_block)" ]
+}
+
 apply_block() {
-  if is_blocked; then
+  if is_blocked && block_matches_desired; then
     return 0
   fi
-  cat "$HOSTS_FILE" > "$STAGED_HOSTS"
+  if is_blocked; then
+    awk -v b="$MARKER_BEGIN" -v e="$MARKER_END" '
+      $0==b {skip=1; next}
+      $0==e {skip=0; next}
+      !skip {print}
+    ' "$HOSTS_FILE" > "$STAGED_HOSTS"
+  else
+    cat "$HOSTS_FILE" > "$STAGED_HOSTS"
+  fi
   {
     echo ""
-    echo "$MARKER_BEGIN"
-    for h in "${BLOCKED_HOSTS_ARR[@]}"; do
-      h=$(echo "$h" | xargs)
-      [ -z "$h" ] && continue
-      echo "127.0.0.1 $h"
-      echo "::1 $h"
-    done
-    echo "$MARKER_END"
+    desired_block
   } >> "$STAGED_HOSTS"
   sudo -n /bin/cp "$STAGED_HOSTS" "$HOSTS_FILE"
   local rc=$?
   flush_dns
-  log "block applied (rc=$rc)"
+  log "block applied (rc=$rc, hosts=$BLOCKED_HOSTS)"
   return $rc
 }
 

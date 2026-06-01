@@ -50,7 +50,7 @@ BLOCKED_HOSTS=mail.google.com,www.mail.google.com,gmail.com,www.gmail.com
 BLOCKED_HOSTS=twitter.com,www.twitter.com,x.com,www.x.com,reddit.com,www.reddit.com
 ```
 
-After changing `.env`, re-run `bash install.sh` (or just wait — the next 5-minute poll picks up the new value, but staged blocks won't reflect new hostnames until the next state change).
+After changing `.env`, just wait — the next 5-minute poll picks up the new `BLOCKED_HOSTS` and rewrites `/etc/hosts` to match. To apply immediately: `./commit_gate.sh check`.
 
 ## Manual commands
 
@@ -71,10 +71,15 @@ bash uninstall.sh
 
 Unloads the LaunchAgents, removes the `/etc/hosts` block, and deletes the sudoers rule.
 
-## Caveats
+## Limitations
+
+**This is a soft commitment device, not a hard lock.** Anyone who knows what they're doing can `sudo vi /etc/hosts` and delete the block in 30 seconds, or just disable the LaunchAgent. The friction is the whole point — it's there to interrupt the autopilot of opening Gmail, not to defeat a determined procrastinator.
+
+Other things to know:
 
 - **Browser cache**: after a hostname is added to `/etc/hosts`, browsers may keep an existing tab connected. Cmd+Q (fully quit) and reopen.
 - **Public events only**: pushes to private repos don't show up in `/users/<name>/events/public`. If you only commit to private repos, this won't work for you.
 - **Fails open**: if GitHub's API is unreachable, the script does *not* block (so you're not stranded with no email when GitHub goes down).
 - **Local timezone**: "today" is your machine's local date, not UTC.
 - **Doesn't block native apps**: this is `/etc/hosts`-based, so anything bypassing system DNS (some VPNs, some apps using DoH) will still work.
+- **macOS only**: uses `launchd` and macOS-style `/etc/hosts` flushing. Linux would need different scheduling and DNS-flush commands.
